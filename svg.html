@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.6/d3.min.js"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>JS Bin</title>
+</head>
+<body>
+  <p>
+  <span id="dropbox" style="border: 1px dashed black;padding:10px">Drop here</span>  <a id="download">Download</a>
+  </p>
+<script>
+
+// http://jsbin.com/finebuqadi/
+
+var data = [
+  { "count": 10, "r": 255, "g": 0, "b": 0 },
+  { "count": 3, "r": 0, "g": 255, "b": 0 }
+];
+
+var width = 200,
+    height = 200,
+    radius = height / 2 - 1;
+
+var arc = d3.svg.arc()
+    .innerRadius(radius - 60)
+    .outerRadius(radius);
+
+function colorComp(d0, d1) {
+  var l = d3.rgb(d0.r, d0.g, d0.b).hsl();
+  var r = d3.rgb(d1.r, d1.g, d1.b).hsl();
+
+  var e = l.h == r.h && l.s == r.s && l.l == r.l;
+  var lt = l.h < r.h || (l.h == r.h && l.s < r.s) || (l.h == r.h && l.s == r.s && l.l < r.l);
+
+  return lt ? -1 : !lt ? 1 : e ? 0 : NaN; 
+};
+  
+var pie = d3.layout.pie()
+    .padAngle(-.01)
+    .value(function (d, i) { return d.count; })
+    .sort(function (d0, d1) { 
+      var l = d3.rgb(d0.r, d0.g, d0.b).hsl();
+      var r = d3.rgb(d1.r, d1.g, d1.b).hsl();
+      
+      var vl = Math.round(l.l * 5.0)/5.0;
+      var rl = Math.round(r.l * 5.0)/5.0;
+    
+      if(vl == rl) {
+        return colorComp(d0, d1);
+      } else if(vl < rl) {
+        return -1;
+      } else {
+        return 1;
+      }
+    });
+
+var svg = d3.select("body").append("svg")
+    .attr("width", width)
+    .attr("height", height)
+    .attr("id", "result")
+  .append("g")
+    .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
+
+  function render(data) {
+svg.selectAll("path")
+    .data(pie(data))
+  .enter().append("path")
+    .style("fill", function(d, i) { return d3.rgb(d.data.r, d.data.g, d.data.b); })
+    .attr("d", arc);
+  }
+
+  function type(d) {
+    d.count = +d.count;
+    d.r = +d.r;
+    d.g = +d.g;
+    d.b = +d.b;
+    return d;
+  }
+   
+  var dropbox = document.getElementById("dropbox");
+  dropbox.addEventListener("dragenter", dragenter, false);
+  dropbox.addEventListener("dragover", dragover, false);
+  dropbox.addEventListener("drop", drop, false);
+  
+  function dragenter(e) {
+    e.stopPropagation();
+    e.preventDefault();
+  }
+
+  function dragover(e) {
+    e.stopPropagation();
+    e.preventDefault();
+  }
+  
+  function drop(e) {
+    e.stopPropagation();
+    e.preventDefault();
+
+    var dt = e.dataTransfer;
+    var files = dt.files;
+    var filename = files[0].name;
+    filename = filename.replace(/\.[^/.]+$/, "")
+    console.log(filename);
+    
+    var reader = new FileReader();
+    reader.onload = function(d) {
+      svg.selectAll("*").remove();  
+      document.getElementById("download").setAttribute("download", filename + ".svg");
+      
+      var content = "count;r;g;b\n" + this.result;
+      var data = d3.dsv(";", "text/plain").parse(content,type);
+
+      render(data);
+      
+      var svgContents = document.getElementById("result").outerHTML;
+      var uri = "data:application/octet-stream;base64," + btoa(svgContents);
+      document.getElementById("download").setAttribute("href", uri);
+    }
+    reader.readAsText(files[0]);
+  }
+</script>
+</body>
+</html>
